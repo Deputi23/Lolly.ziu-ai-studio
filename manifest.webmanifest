@@ -1,7 +1,7 @@
 {
-  "name": "LOLLY AI STUDIO",
+  "name": "LOLLY AI STUDIO v0.3 — Multi Character",
   "short_name": "LOLLY STUDIO",
-  "description": "Studio produksi micro drama AI — rancang episode, karakter, storyboard, dialog, dan alur produksi.",
+  "description": "Studio produksi micro drama AI — multi karakter, foto referensi, storyboard, dialog, dan alur produksi.",
   "lang": "id-ID",
   "start_url": "./",
   "scope": "./",

@@ -1,4 +1,4 @@
-const CACHE_NAME = "lolly-ai-studio-v02";
+const CACHE_NAME = "lolly-ai-studio-v03";
 const APP_FILES = [
   "./",
   "./index.html",

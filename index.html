@@ -8,7 +8,7 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>LOLLY AI STUDIO</title>
+<title>LOLLY AI STUDIO v0.3</title>
 <style>
 :root{--bg:#100d19;--panel:#1c1729;--panel2:#28213a;--line:#403553;--ink:#f7f2ff;--muted:#b9aecb;--purple:#a78bfa;--pink:#f0abfc;--green:#86efac;--amber:#fcd34d;--red:#fca5a5}
 *{box-sizing:border-box}
@@ -82,7 +82,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px 10px}
 <body>
 <header>
   <div class="brand">LOLLY <span>AI</span> STUDIO</div>
-  <div class="header-right"><span id="saveState">Belum ada perubahan</span><span class="pill">BETA · GRATIS</span><button class="secondary" id="installBtn" hidden>Pasang</button></div>
+  <div class="header-right"><span id="saveState">Belum ada perubahan</span><span class="pill">V0.3 · MULTI CHARACTER</span><button class="secondary" id="installBtn" hidden>Pasang</button></div>
 </header>
 <div class="layout">
   <div class="nav-wrap">
@@ -146,9 +146,13 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px 10px}
     </section>
 
     <section class="view" id="view-character">
-      <div class="hero"><h1>Character Studio</h1><p class="sub">Buat lembar identitas pemeran. Deskripsi ini akan otomatis masuk ke prompt setiap shot.</p></div>
+      <div class="hero"><h1>Multi Character Studio</h1><p class="sub">Simpan banyak pemeran, unggah foto referensi masing-masing, lalu pilih siapa yang tampil di setiap shot.</p></div>
+      <div class="panel">
+        <div class="panel-head"><div><h2 style="margin:0">Perpustakaan karakter</h2><p class="help">Profil dapat digunakan kembali di seluruh episode.</p></div><button type="button" id="newCharacter" class="secondary">＋ Karakter baru</button></div>
+        <div id="characterList" class="grid"></div>
+      </div>
       <form id="characterForm" class="panel">
-        <div class="form-grid">
+        <input type="hidden" id="charId"><div class="panel-head"><h2 id="characterFormTitle" style="margin:0">Tambah karakter</h2><span class="badge">Foto referensi opsional</span></div><div class="form-grid">
           <div class="field"><label for="charName">Nama karakter</label><input id="charName" placeholder="Contoh: Alya"></div>
           <div class="field"><label for="charRole">Peran</label><input id="charRole" placeholder="Pemeran utama"></div>
           <div class="field"><label for="charAge">Rentang usia tampilan</label><input id="charAge" placeholder="Contoh: dewasa muda"></div>
@@ -158,8 +162,9 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px 10px}
           <div class="field"><label for="charPersonality">Kepribadian / gestur</label><textarea id="charPersonality" placeholder="Cara bicara, ekspresi, kebiasaan gestur"></textarea></div>
           <div class="field"><label for="charVoice">Karakter suara</label><input id="charVoice" placeholder="Contoh: lembut, sedikit serak, tenang"></div>
           <div class="field"><label for="charReference">Catatan foto referensi</label><input id="charReference" placeholder="Contoh: gunakan foto referensi utama yang sama"></div>
+          <div class="field full"><label for="charPhoto">Foto referensi karakter</label><input id="charPhoto" type="file" accept="image/*"><p class="help">Pilih foto wajah/karakter yang jelas. Foto akan diperkecil agar hemat ruang penyimpanan.</p><div id="charPhotoPreview" class="help"></div></div>
         </div>
-        <div class="actions"><button type="submit">Simpan karakter</button><button type="button" class="secondary" id="copyCharacterLock">Salin character lock prompt</button></div>
+        <div class="actions"><button type="submit">Simpan karakter</button><button type="button" class="secondary" id="cancelCharacterEdit">Batal</button><button type="button" class="secondary" id="copyCharacterLock">Salin prompt karakter</button></div>
         <p class="help" id="charStatus" aria-live="polite"></p>
       </form>
       <div class="panel"><h3>Character lock prompt</h3><p class="help">Tempelkan prompt ini bersama foto referensi yang sama pada layanan pembuat gambar/video. Deskripsi teks membantu konsistensi, tetapi tidak menjamin wajah identik tanpa fitur reference/character consistency dari layanan eksternal.</p><div class="prompt-box" id="characterLockPreview"></div></div>
@@ -222,7 +227,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px 10px}
         <div class="actions"><button id="exportAll" type="button">Ekspor seluruh proyek (.json)</button><button class="secondary" id="importBtn" type="button">Impor proyek (.json)</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
       </div>
     </section>
-    <footer>LOLLY AI STUDIO · Versi 0.2 · Workspace lokal/PWA-ready · Generator gambar/video eksternal belum terintegrasi.</footer>
+    <footer>LOLLY AI STUDIO · Versi 0.3 · Multi Character · Workspace lokal/PWA-ready · Generator gambar/video eksternal belum terintegrasi.</footer>
   </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -234,21 +239,32 @@ const $ = (id) => document.getElementById(id);
 const defaultShots = Array.from({length:12}, (_,i)=>({
   id: i+1, title:`Shot ${String(i+1).padStart(2,"0")} — isi beat adegan`,
   duration:6, visual:"", camera:"Medium shot, gerakan kamera stabil", dialogue:"",
-  speaker:"", emotion:"Natural", audio:"Ambience sesuai lokasi", continuity:"",
+  speaker:"", characterIds:[], emotion:"Natural", audio:"Ambience sesuai lokasi", continuity:"",
   status:"Rencana", fileName:`E01_S${String(i+1).padStart(2,"0")}.mp4`
 }));
 function freshState(){
   return {
     meta:{title:"DI BALIK SENYUMAN",genre:"Drama keluarga",synopsis:"Di balik senyum yang terlihat kuat, tersimpan luka dan rahasia yang perlahan terungkap.",episodeNo:1,episodeTitle:"Episode 1 — Draf",format:"Vertikal 9:16",targetDuration:"60–90 detik",language:"Bahasa Indonesia",tone:"Emosional dan realistis"},
     character:{name:"",role:"Pemeran utama",age:"",hair:"",appearance:"",wardrobe:"",personality:"",voice:"",reference:"Gunakan foto referensi utama yang sama pada setiap shot."},
-    shots:defaultShots, voice:{narrator:"Tanpa narator",mood:"Natural dan intim",speed:"1",notes:""},
+    characters:[], activeCharacterId:null, shots:defaultShots, voice:{narrator:"Tanpa narator",mood:"Natural dan intim",speed:"1",notes:""},
     edit:{opening:"",closing:"",music:"",notes:""}, updatedAt:null
   };
 }
 function loadState(){
   try{
     const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
-    if(saved && saved.meta && Array.isArray(saved.shots)) return saved;
+    if(saved && saved.meta && Array.isArray(saved.shots)){
+      if(!Array.isArray(saved.characters)){
+        const c=saved.character||{};
+        if(c.name||c.appearance||c.hair||c.wardrobe){const id="char_legacy";saved.characters=[{id,...c,photo:""}];saved.activeCharacterId=id;}
+        else saved.characters=[];
+      }
+      saved.shots.forEach(sh=>{
+        if(!Array.isArray(sh.characterIds))sh.characterIds=[];
+        if(!sh.characterIds.length && saved.characters.length===1 && saved.characters[0].id==="char_legacy") sh.characterIds=["char_legacy"];
+      });
+      return saved;
+    }
   }catch(e){}
   const base=freshState();
   try{
@@ -277,19 +293,27 @@ function scheduleSave(){ $("saveState").textContent="Menyimpan…";clearTimeout(
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function totalDuration(){return state.shots.reduce((s,x)=>s+(Number(x.duration)||0),0);}
 function doneCount(){return state.shots.filter(x=>x.status==="Selesai").length;}
-function characterLock(){
-  const c=state.character;
+function lockForCharacter(c){
   return [
-    "CHARACTER CONSISTENCY LOCK — gunakan karakter yang sama di seluruh shot.",
-    `Nama/peran: ${c.name||"pemeran utama"} / ${c.role||"pemeran utama"}.`,
-    c.age?`Rentang usia tampilan: ${c.age}.`:"",
-    c.appearance?`Wajah dan penampilan: ${c.appearance}.`:"",
+    `KARAKTER: ${c.name||"Pemeran"} — ${c.role||"pemeran"}.`,
+    c.age?`Usia tampilan: ${c.age}.`:"",
+    c.appearance?`Wajah/penampilan: ${c.appearance}.`:"",
     c.hair?`Rambut/ciri kepala: ${c.hair}.`:"",
     c.wardrobe?`Kostum: ${c.wardrobe}.`:"",
     c.personality?`Gestur/kepribadian: ${c.personality}.`:"",
-    c.reference||"Gunakan foto referensi utama yang sama.",
-    "Jangan mengubah identitas wajah, bentuk rambut, usia tampilan, atau kostum tanpa instruksi cerita."
+    c.voice?`Suara: ${c.voice}.`:"",
+    c.reference?`Referensi: ${c.reference}.`:"",
+    "Pertahankan identitas wajah, rambut, usia tampilan, dan kostum karakter ini pada seluruh shot yang menampilkannya."
   ].filter(Boolean).join("\n");
+}
+function selectedCharacters(shot){
+  const ids=Array.isArray(shot.characterIds)?shot.characterIds:[];
+  return state.characters.filter(c=>ids.includes(c.id));
+}
+function characterLock(){
+  const chars=state.characters.length?state.characters:[state.character].filter(c=>c&&(c.name||c.appearance||c.hair));
+  if(!chars.length)return "BELUM ADA PROFIL KARAKTER. Tambahkan karakter di Character Studio.";
+  return "MULTI-CHARACTER CONSISTENCY LOCK\n"+chars.map(lockForCharacter).join("\n\n");
 }
 function buildPrompt(shot){
   const m=state.meta;
@@ -297,7 +321,7 @@ function buildPrompt(shot){
     `PROJECT: ${m.title} | ${m.episodeTitle} | ${m.language}`,
     `SHOT ${String(shot.id).padStart(2,"0")} — durasi ${shot.duration} detik.`,
     `FORMAT: ${m.format}, cinematic vertical framing, high visual quality.`,
-    characterLock(),
+    (selectedCharacters(shot).length?selectedCharacters(shot).map(lockForCharacter).join("\n\n"):"PEMERAN SHOT: Belum dipilih. Pilih karakter yang tampil pada shot ini di bagian Pemeran.") ,
     `AKSI / VISUAL: ${shot.visual||shot.title||"Isi aksi adegan terlebih dahulu."}`,
     `KAMERA: ${shot.camera||"Kamera stabil, framing sinematik."}`,
     `EMOSI: ${shot.emotion||"Natural"}.`,
@@ -321,6 +345,7 @@ function exportProject(){
 function showView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+name));
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===name));
+  if(name==="character")renderCharacters();
   if(name==="storyboard")renderShots();
   if(name==="dialogue")renderDialogue();
   if(name==="production")renderProduction();
@@ -333,13 +358,10 @@ $("exportAllTop").addEventListener("click",exportProject);
 $("exportAll").addEventListener("click",exportProject);
 
 function fillForms(){
-  const m=state.meta,c=state.character,v=state.voice,e=state.edit;
+  const m=state.meta,c=state.characters.find(x=>x.id===state.activeCharacterId)||state.characters[0]||state.character,v=state.voice,e=state.edit;
   $("projectTitle").value=m.title;$("genre").value=m.genre;$("synopsis").value=m.synopsis;
   $("episodeNo").value=m.episodeNo;$("episodeTitle").value=m.episodeTitle;$("format").value=m.format;
   $("targetDuration").value=m.targetDuration;$("language").value=m.language;$("tone").value=m.tone;
-  $("charName").value=c.name;$("charRole").value=c.role;$("charAge").value=c.age;$("charHair").value=c.hair;
-  $("charAppearance").value=c.appearance;$("charWardrobe").value=c.wardrobe;$("charPersonality").value=c.personality;
-  $("charVoice").value=c.voice;$("charReference").value=c.reference;
   $("narratorStyle").value=v.narrator;$("voiceMood").value=v.mood;$("voiceSpeed").value=v.speed;$("voiceNotes").value=v.notes;
   $("openingText").value=e.opening;$("closingText").value=e.closing;$("musicPlan").value=e.music;$("editNotes").value=e.notes;
   $("characterLockPreview").textContent=characterLock();
@@ -348,9 +370,44 @@ $("metaForm").addEventListener("submit",e=>{
   e.preventDefault();state.meta={title:$("projectTitle").value.trim(),genre:$("genre").value,synopsis:$("synopsis").value.trim(),episodeNo:Number($("episodeNo").value)||1,episodeTitle:$("episodeTitle").value.trim(),format:$("format").value,targetDuration:$("targetDuration").value,language:$("language").value,tone:$("tone").value};
   saveState();$("metaStatus").textContent="Pengaturan drama tersimpan.";
 });
+let pendingPhoto="";
+function resetCharacterForm(){
+  $("characterForm").reset();$("charId").value="";pendingPhoto="";$("characterFormTitle").textContent="Tambah karakter";$("charPhotoPreview").textContent="Belum ada foto referensi.";
+}
+function editCharacter(id){
+  const c=state.characters.find(x=>x.id===id);if(!c)return;
+  state.activeCharacterId=id;$("charId").value=c.id;$("charName").value=c.name||"";$("charRole").value=c.role||"";$("charAge").value=c.age||"";$("charHair").value=c.hair||"";
+  $("charAppearance").value=c.appearance||"";$("charWardrobe").value=c.wardrobe||"";$("charPersonality").value=c.personality||"";$("charVoice").value=c.voice||"";$("charReference").value=c.reference||"";
+  pendingPhoto=c.photo||"";$("charPhotoPreview").innerHTML=c.photo?`<img src="${c.photo}" alt="Foto ${esc(c.name)}" style="width:92px;height:92px;object-fit:cover;border-radius:12px;border:1px solid var(--line)">`:`Belum ada foto referensi.`;
+  $("characterFormTitle").textContent="Edit karakter: "+c.name;$("characterForm").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function renderCharacters(){
+  const wrap=$("characterList");if(!wrap)return;wrap.innerHTML="";
+  if(!state.characters.length){wrap.innerHTML='<p class="help">Belum ada karakter. Tekan “Karakter baru” untuk menambahkan pemeran pertama.</p>';}
+  state.characters.forEach(c=>{
+    const card=document.createElement("div");card.className="card";
+    const img=c.photo?`<img src="${c.photo}" alt="Foto ${esc(c.name)}" style="width:100%;height:150px;object-fit:cover;border-radius:10px">`:`<div style="height:150px;border-radius:10px;background:#100d19;display:grid;place-items:center;font-size:42px">🎭</div>`;
+    card.innerHTML=`${img}<h3>${esc(c.name||"Tanpa nama")}</h3><p>${esc(c.role||"Pemeran")}</p><div class="actions"><button type="button" class="secondary" data-edit="${esc(c.id)}">Edit</button><button type="button" class="danger" data-delete="${esc(c.id)}">Hapus</button></div>`;wrap.append(card);
+  });
+  $("characterLockPreview").textContent=characterLock();
+}
+$("characterList").addEventListener("click",e=>{
+  const edit=e.target.closest("[data-edit]"),del=e.target.closest("[data-delete]");
+  if(edit)editCharacter(edit.dataset.edit);
+  if(del){const id=del.dataset.delete,c=state.characters.find(x=>x.id===id);if(!c)return;if(!confirm(`Hapus karakter ${c.name}?`))return;state.characters=state.characters.filter(x=>x.id!==id);state.shots.forEach(sh=>sh.characterIds=(sh.characterIds||[]).filter(x=>x!==id));if(state.activeCharacterId===id)state.activeCharacterId=state.characters[0]?.id||null;saveState(false);renderCharacters();renderShots();toast("Karakter dihapus.");}
+});
+$("newCharacter").addEventListener("click",()=>{resetCharacterForm();$("characterForm").scrollIntoView({behavior:"smooth",block:"start"});});
+$("cancelCharacterEdit").addEventListener("click",resetCharacterForm);
+$("charPhoto").addEventListener("change",async e=>{
+  const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){toast("Pilih file gambar.");return;}
+  try{pendingPhoto=await compressImage(file);$("charPhotoPreview").innerHTML=`<img src="${pendingPhoto}" alt="Pratinjau foto karakter" style="width:92px;height:92px;object-fit:cover;border-radius:12px;border:1px solid var(--line)">`;}catch(err){toast("Foto tidak dapat dibaca. Coba gambar lain.");}
+});
+function compressImage(file){return new Promise((resolve,reject)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const max=640,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement("canvas");canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);resolve(canvas.toDataURL("image/jpeg",.72));};img.onerror=()=>{URL.revokeObjectURL(url);reject(Error("image"));};img.src=url;});}
 $("characterForm").addEventListener("submit",e=>{
-  e.preventDefault();state.character={name:$("charName").value.trim(),role:$("charRole").value.trim(),age:$("charAge").value.trim(),hair:$("charHair").value.trim(),appearance:$("charAppearance").value.trim(),wardrobe:$("charWardrobe").value.trim(),personality:$("charPersonality").value.trim(),voice:$("charVoice").value.trim(),reference:$("charReference").value.trim()};
-  $("characterLockPreview").textContent=characterLock();saveState();$("charStatus").textContent="Profil karakter tersimpan.";
+  e.preventDefault();const id=$("charId").value||("char_"+Date.now());
+  const old=state.characters.find(x=>x.id===id);const c={id,name:$("charName").value.trim()||"Karakter tanpa nama",role:$("charRole").value.trim(),age:$("charAge").value.trim(),hair:$("charHair").value.trim(),appearance:$("charAppearance").value.trim(),wardrobe:$("charWardrobe").value.trim(),personality:$("charPersonality").value.trim(),voice:$("charVoice").value.trim(),reference:$("charReference").value.trim(),photo:pendingPhoto||old?.photo||""};
+  if(old)state.characters=state.characters.map(x=>x.id===id?c:x);else state.characters.push(c);
+  state.activeCharacterId=id;state.character=c;saveState(false);renderCharacters();renderShots();$("charStatus").textContent="Profil karakter tersimpan.";toast("Karakter berhasil disimpan.");resetCharacterForm();
 });
 $("copyCharacterLock").addEventListener("click",()=>copyText(characterLock()));
 
@@ -361,6 +418,7 @@ function renderShots(){
     el.innerHTML=`
       <div class="shot-top"><div><strong>SHOT ${String(s.id).padStart(2,"0")}</strong> <span class="badge">${esc(s.duration)} detik</span> <span class="badge ${s.status==="Selesai"?"good":s.status==="Prompt siap"?"warn":""}">${esc(s.status)}</span></div><button type="button" class="danger" data-action="delete">Hapus</button></div>
       <div class="shot-grid">
+        <div class="field full"><label>Pemeran dalam shot ini (boleh pilih beberapa)</label><select data-field="characterIds" multiple size="3">${state.characters.map(c=>`<option value="${esc(c.id)}" ${(s.characterIds||[]).includes(c.id)?"selected":""}>${esc(c.name)} — ${esc(c.role||"Pemeran")}</option>`).join("")}</select><p class="help">Tekan dan tahan untuk memilih beberapa karakter di HP. Prompt akan menyertakan deskripsi pemeran yang dipilih.</p></div>
         <div><label>Judul / beat adegan</label><input data-field="title" value="${esc(s.title)}"></div>
         <div><label>Durasi (detik)</label><input data-field="duration" type="number" min="1" max="30" value="${esc(s.duration)}"></div>
         <div><label>Visual / aksi yang terlihat</label><textarea data-field="visual" placeholder="Apa yang terlihat dan dilakukan karakter?">${esc(s.visual)}</textarea></div>
@@ -384,7 +442,7 @@ function updateShotSummary(){
 $("shotList").addEventListener("input",e=>{
   const field=e.target.dataset.field;if(!field)return;
   const card=e.target.closest(".shot");const i=Number(card.dataset.index);
-  state.shots[i][field]=field==="duration"?Math.max(1,Math.min(30,Number(e.target.value)||1)):e.target.value;
+  state.shots[i][field]=field==="duration"?Math.max(1,Math.min(30,Number(e.target.value)||1)):field==="characterIds"?Array.from(e.target.selectedOptions).map(o=>o.value):e.target.value;
   scheduleSave();updateShotSummary();
 });
 $("shotList").addEventListener("click",e=>{
@@ -397,7 +455,7 @@ $("shotList").addEventListener("click",e=>{
 });
 $("addShot").addEventListener("click",()=>{
   const id=state.shots.length?Math.max(...state.shots.map(s=>s.id))+1:1;
-  state.shots.push({id,title:`Shot ${String(id).padStart(2,"0")} — isi beat adegan`,duration:6,visual:"",camera:"Medium shot, gerakan kamera stabil",dialogue:"",speaker:"",emotion:"Natural",audio:"Ambience sesuai lokasi",continuity:"",status:"Rencana",fileName:`E${String(state.meta.episodeNo).padStart(2,"0")}_S${String(id).padStart(2,"0")}.mp4`});
+  state.shots.push({id,title:`Shot ${String(id).padStart(2,"0")} — isi beat adegan`,duration:6,visual:"",camera:"Medium shot, gerakan kamera stabil",dialogue:"",speaker:"",characterIds:[],emotion:"Natural",audio:"Ambience sesuai lokasi",continuity:"",status:"Rencana",fileName:`E${String(state.meta.episodeNo).padStart(2,"0")}_S${String(id).padStart(2,"0")}.mp4`});
   saveState(false);renderShots();toast("Shot baru ditambahkan.");
 });
 $("copyAllPrompts").addEventListener("click",()=>copyText(state.shots.map(buildPrompt).join("\n\n--------------------\n\n")));
@@ -486,7 +544,7 @@ function renderDashboard(){
   $("dashSynopsis").textContent=state.meta.synopsis;
   $("dashGenre").textContent=state.meta.genre;
 }
-function renderAll(){renderDashboard();renderShots();renderDialogue();renderProduction();renderTimeline();$("characterLockPreview").textContent=characterLock();}
+function renderAll(){renderDashboard();renderCharacters();renderShots();renderDialogue();renderProduction();renderTimeline();$("characterLockPreview").textContent=characterLock();}
 fillForms();renderAll();
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").then(()=>{$("saveState").textContent="PWA siap · data lokal";}).catch(()=>{}));
