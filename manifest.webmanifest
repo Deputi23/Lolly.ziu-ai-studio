@@ -1,26 +1,20 @@
 {
-  "name": "LOLLY AI STUDIO v0.3 — Multi Character",
-  "short_name": "LOLLY STUDIO",
-  "description": "Studio produksi micro drama AI — multi karakter, foto referensi, storyboard, dialog, dan alur produksi.",
-  "lang": "id-ID",
+  "name": "LOLLY AI STUDIO",
+  "short_name": "LOLLY AI",
   "start_url": "./",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#100d19",
-  "theme_color": "#171226",
+  "background_color": "#090909",
+  "theme_color": "#090909",
   "icons": [
     {
-      "src": "./icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
-      "src": "./icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
